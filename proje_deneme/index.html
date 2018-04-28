@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Mesaj Sayfasi</title>
+    <style>
+        #chat{
+            height: 500px;
+        }
+        #contentWrap{
+            display: none;
+        }
+        #chatWrap{
+            float: left;
+            margin-top: 10px;
+            margin-left: 10px;
+            border: 3px #2021bf solid;
+        }
+        .div {
+            float: left;
+            display: inline-block;
+            height: 500px;
+            width: 120px;
+            margin: 10px;
+        }
+    </style>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script type="text/javascript">
+        function Yuklendi()
+        {
+            location.href="http://localhost:3000/cikis.html";
+        }
+        //Kodun bazı temel kısımları https://www.youtube.com/watch?v=dOSIqJWQkXM&index=2&list=PLicY6aYZ8ilpmHfJ8jP1lt7ihPpRWBJ9P videosundan alıntıdır.
+    </script>
+</head>
+<body>
+    <div id="nickWrap">
+        <div class="container">
+            <div class="row col-md-6 col-md-offset-3">
+                <p id="nickError"></p>
+                <form id="setNick">
+                    <div class="form-group">
+                        <label >Nick:</label>
+                        <input  id="nicknames" type="text" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Ip:</label>
+                        <input  id="ip" value="127.0.0.12" type="text" class="form-control">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Giriş</button>
+                </form>
+            </div>
+        </div>
+
+    </div>
+
+    <div id="contentWrap">
+        <div id="chatWrap">
+            <div style="overflow-y: scroll;border: 3px #2021bf solid;" id="chat"></div>
+            <form id="istek">
+                &nbsp;<input size="20" style="padding: 5px;margin-top: 5px;margin-bottom: 5px;border: 1px #2021bf solid; " id="alici_2">
+                <button type="submit" class="btn btn-primary" style="margin-bottom: 5px;margin-top: 5px">İstek</button>
+            </form>
+            <form id="send_messages">
+                &nbsp;<input style="padding: 5px;border: 1px #2021bf solid;" size="35" id="messages">
+                <input size="20" style="padding: 5px;border: 1px #2021bf solid;" id="alici">
+                <button type="submit" class="btn btn-primary" style="margin-bottom: 5px">Gönder</button>
+                <button type="submit" onclick="Yuklendi()" class="btn btn-primary" style="margin-bottom: 5px">Çıkış</button>&nbsp;
+            </form>
+        </div>
+        <div style="overflow-y: scroll;width: 200px;" class="div" id="users" ></div>
+        <div class="div" id="durumlar"></div>
+
+    </div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+    <script>
+
+        $(function () {
+            var socket = io();
+
+            $('#setNick').submit(function (e) {
+                e.preventDefault();
+                socket.emit('new user',{ "nick" : $('#nicknames').val(), "ip": $('#ip').val(), "durum": "Online"},function (data) {
+                        $('#nickWrap').hide();
+                        $('#contentWrap').show();
+                });
+            });
+
+            socket.on('usernames',function (data) {
+                var html = '';
+                var obj = JSON.stringify(data);
+                console.log(obj);
+                var dizi = JSON.parse(obj);
+                for(var i=0;i<dizi.length;i++){
+                    html += '<button type="button" class="btn btn-primary">'+dizi[i].nick +'  ->  <span class="badge">'+dizi[i].durum +'</span></button>\n<br><br>';
+                }
+                $('#users').html(html);
+            });
+
+            $('#istek').submit(function(e){
+                e.preventDefault();
+                socket.emit('tanisma',{ "alici" : $('#alici_2').val(), "gonderen": $('#nicknames').val(), "tanisma" :""});
+                return false;
+            });
+
+            $('#send_messages').submit(function(e){
+                e.preventDefault();
+                socket.emit('send message',{ "alici" : $('#alici').val(), "gonderen": $('#nicknames').val(), "mesaj": $('#messages').val()});
+                $('#chat').append('<p > &nbsp; <button type="button" class="btn btn-primary">Sen : ->  <span class="badge">'+$('#messages').val()+'</span></button></p>');
+                $('#messages').val('');
+                return false;
+            });
+            var onay = [];
+            socket.on('tanisma_2', function(msg){
+                var obj = JSON.stringify(msg);
+                var dizi = JSON.parse(obj);
+                if($('#nicknames').val() == dizi.alici){
+                    var r = confirm(dizi.gonderen+" sizinle konuşmak istiyor onaylıyor musunuz ?");
+                    if(r==true)
+                    {
+                        socket.emit('tanisma_3',{ "alici" : dizi.gonderen, "gonderen": dizi.alici, "tanisma" : "ok"});
+                        onay.push({ "alici" : dizi.gonderen, "gonderen": dizi.alici, "tanisma" : "ok"});
+                        console.log(onay);
+                        $('#chat').append('<p>'+"Görüşme başlatılıyor."+'</p>');
+                    }
+                    else
+                    {
+                        socket.emit('tanisma_3',{ "alici" : dizi.gonderen, "gonderen": dizi.alici, "tanisma" : "iptal"});
+                        onay.push({ "alici" : dizi.gonderen, "gonderen": dizi.alici, "tanisma" : "iptal"});
+                        console.log(onay);
+                        $('#chat').append('<p>'+"Görüşme talebini iptal ettiniz."+'</p>');
+                    }
+                }
+            });
+
+            socket.on('tanisma_4', function(msg){
+                var obj = JSON.stringify(msg);
+                var dizi_2 = JSON.parse(obj);
+                if($('#nicknames').val() == dizi_2.alici){
+                    if(dizi_2.tanisma == 'ok'){
+                        onay.push(dizi_2);
+                        $('#chat').append('<p>'+dizi_2.gonderen+" "+"ile görüşme isteğiniz onaylandı."+'</p>');
+                        console.log(onay);
+                    }
+                    else{
+                        onay.push(dizi_2);
+                        $('#chat').append('<p>'+dizi_2.gonderen+" görüşme isteğini reddettiniz !!!"+'</p>');
+                        console.log(onay);
+                    }
+                }
+
+            });
+
+            socket.on('new messages', function(msg){
+                var html = '';
+                var obj = JSON.stringify(msg);
+                var dizi = JSON.parse(obj);
+                if($('#nicknames').val() == dizi.alici){
+                    for(var i=0;i<onay.length;i++){
+                        if((onay[i].alici == dizi.gonderen) || (onay[i].gonderen == dizi.gonderen)){
+                                    if(onay[i].tanisma == 'ok'){
+                                        $('#chat').append('<p> &nbsp;&nbsp;&nbsp; <button type="button" class="btn btn-success">'+dizi.gonderen +'  ->  <span class="badge">'+dizi.mesaj+'</span></button></p>');
+                                        console.log(dizi.mesaj);
+                                        break;
+                                    }
+                            }
+                        }
+                }
+            });
+
+        });
+
+    </script>
+
+</body>
+</html>
